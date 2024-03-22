@@ -294,9 +294,7 @@ func (c *Client) rc4Decrypt(signNonce string, payload []byte) (dst []byte, err e
 // doRequest execute an crypto http request
 func (c *Client) doRequest(ctx context.Context, r *Request) (ret *Response) {
 	var (
-		err       error
 		buf       []byte
-		retried   bool
 		qs        url.Values
 		req       *http.Request
 		res       *http.Response
@@ -306,7 +304,6 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (ret *Response) {
 		ret.Error = errors.New("please log in to the system first")
 		return
 	}
-__req:
 	ret = &Response{}
 	qs = make(url.Values)
 	if r.Data != nil {
@@ -336,7 +333,7 @@ __req:
 	req.AddCookie(&http.Cookie{Name: "dst_offset", Value: "3600000"})
 	req.AddCookie(&http.Cookie{Name: "channel", Value: "MI_APP_STORE"})
 	if res, ret.Error = c.httpClient.Do(req.WithContext(ctx)); ret.Error != nil {
-		ret.Code = ErrorDoRequest
+		ret.Code = ErrorHttpRequest
 		ret.Error = fmt.Errorf("http request error: %s", ret.Error.Error())
 		return
 	}
@@ -344,30 +341,24 @@ __req:
 		_ = res.Body.Close()
 	}()
 	if res.StatusCode != http.StatusOK {
-		if !retried && res.StatusCode == http.StatusUnauthorized {
-			if err = c.Login(ctx); err == nil {
-				retried = true
-				goto __req
-			}
-		}
-		ret.Code = ErrorDoRequest
-		ret.Error = fmt.Errorf("http response %d: %s", res.StatusCode, res.Status)
+		ret.Code = res.StatusCode
+		ret.Error = fmt.Errorf("http server response %d: %s", res.StatusCode, res.Status)
 		return
 	}
 	if buf, ret.Error = io.ReadAll(res.Body); ret.Error != nil {
-		ret.Code = ErrorDoRequest
+		ret.Code = ErrorInvalidResponse
 		return
 	}
 	if buf, ret.Error = c.rc4Decrypt(signNonce, buf); ret.Error != nil {
-		ret.Code = ErrorPayloadInvalid
+		ret.Code = ErrorInvalidResponse
 		return
 	}
 	if ret.Error = json.Unmarshal(buf, ret); ret.Error != nil {
-		ret.Code = ErrorPayloadInvalid
+		ret.Code = ErrorInvalidResponse
 		return
 	}
 	if ret.Code != 0 {
-		ret.Error = fmt.Errorf("invalid result %d: %s", ret.Code, ret.Message)
+		ret.Error = errors.New(ret.Message)
 		return
 	}
 	return
@@ -429,7 +420,7 @@ func (c *Client) Login(ctx context.Context) (err error) {
 // HasNewMsg checking has new message
 func (c *Client) HasNewMsg(ctx context.Context) bool {
 	var ret *Response
-	ret = c.doRequest(ctx, newRequest("/v2/message/v2/check_new_msg", map[string]any{"begin_at": time.Now().Unix() - 60}))
+	ret = c.Request(ctx, newRequest("/v2/message/v2/check_new_msg", map[string]any{"begin_at": time.Now().Unix() - 60}))
 	if ret.IsOK() {
 		return false
 	}
@@ -441,7 +432,7 @@ func (c *Client) GetHomes(ctx context.Context) (homes []*MiHome, err error) {
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/v2/homeroom/gethome", map[string]any{
+	ret = c.Request(ctx, newRequest("/v2/homeroom/gethome", map[string]any{
 		"fg":              true,
 		"fetch_share":     true,
 		"fetch_share_dev": true,
@@ -464,7 +455,7 @@ func (c *Client) GetHomeDevices(ctx context.Context, homeID int64) (devices []*D
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/v2/home/home_device_list", map[string]any{
+	ret = c.Request(ctx, newRequest("/v2/home/home_device_list", map[string]any{
 		"home_owner":         c.us.UserID,
 		"home_id":            homeID,
 		"fetch_share_dev":    true,
@@ -487,7 +478,7 @@ func (c *Client) GetDevices(ctx context.Context) (devices []*DeviceInfo, err err
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/home/device_list", map[string]any{
+	ret = c.Request(ctx, newRequest("/home/device_list", map[string]any{
 		"getVirtualModel":    true,
 		"getHuamiDevices":    1,
 		"get_split_device":   true,
@@ -509,7 +500,7 @@ func (c *Client) GetLastMessage(ctx context.Context) (messages []*SensorMessage,
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/v2/message/v2/typelist", map[string]any{}))
+	ret = c.Request(ctx, newRequest("/v2/message/v2/typelist", map[string]any{}))
 	if !ret.IsOK() {
 		err = ret.Error
 		return
@@ -526,7 +517,7 @@ func (c *Client) GetSensorHistory(ctx context.Context, homeID int64) (histories 
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/scene/history", map[string]any{
+	ret = c.Request(ctx, newRequest("/scene/history", map[string]any{
 		"home_id":   homeID,
 		"uid":       c.us.UserID,
 		"owner_uid": c.us.UserID,
@@ -549,7 +540,7 @@ func (c *Client) GetDeviceProps(ctx context.Context, ps ...*types.DeviceProperty
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/miotspec/prop/get", map[string]any{
+	ret = c.Request(ctx, newRequest("/miotspec/prop/get", map[string]any{
 		"params": ps,
 	}))
 	if !ret.IsOK() {
@@ -577,7 +568,7 @@ func (c *Client) SetDeviceProps(ctx context.Context, ps ...*types.DeviceProperty
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/miotspec/prop/set", map[string]any{
+	ret = c.Request(ctx, newRequest("/miotspec/prop/set", map[string]any{
 		"params": ps,
 	}))
 	if !ret.IsOK() {
@@ -605,7 +596,7 @@ func (c *Client) ExecuteDeviceAction(ctx context.Context, args types.DeviceActio
 	var (
 		ret *Response
 	)
-	ret = c.doRequest(ctx, newRequest("/miotspec/action", map[string]any{
+	ret = c.Request(ctx, newRequest("/miotspec/action", map[string]any{
 		"params": args,
 	}))
 	if !ret.IsOK() {
@@ -616,7 +607,21 @@ func (c *Client) ExecuteDeviceAction(ctx context.Context, args types.DeviceActio
 
 // Request do http request
 func (c *Client) Request(ctx context.Context, r *Request) *Response {
-	return c.doRequest(ctx, r)
+	var (
+		err       error
+		attempted bool
+		res       *Response
+	)
+__retry:
+	if res = c.doRequest(ctx, r); !res.IsOK() {
+		if !attempted && res.Code == http.StatusUnauthorized {
+			if err = c.Login(ctx); err == nil {
+				attempted = true
+				goto __retry
+			}
+		}
+	}
+	return res
 }
 
 func New(country string, username string, password string) *Client {

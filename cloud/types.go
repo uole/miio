@@ -100,7 +100,7 @@ type (
 		Longitude   string      `json:"longitude"`
 		Latitude    string      `json:"latitude"`
 		Name        string      `json:"name"`
-		Pid         string      `json:"pid"`
+		Pid         any         `json:"pid"`
 		LocalIP     string      `json:"localip"`
 		Mac         string      `json:"mac"`
 		Ssid        string      `json:"ssid"`

@@ -1,7 +1,7 @@
 package cloud
 
 const (
-	ErrorPayloadInvalid = 0x7000
-	ErrorCreateRequest  = 0x7001
-	ErrorDoRequest      = 0x7002
+	ErrorCreateRequest   = -0x7001
+	ErrorHttpRequest     = -0x7002
+	ErrorInvalidResponse = -0x7003
 )
