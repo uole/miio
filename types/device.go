@@ -26,11 +26,12 @@ type (
 	}
 
 	DeviceProperty struct {
-		DID   string `json:"did"`
-		SIID  int    `json:"siid"`
-		PIID  int    `json:"piid"`
-		Value any    `json:"value,omitempty"`
-		Code  int    `json:"code,omitempty"`
+		DID     string `json:"did"`
+		SIID    int    `json:"siid"`
+		PIID    int    `json:"piid"`
+		Value   any    `json:"value,omitempty"`
+		Code    int    `json:"code,omitempty"`
+		Modtime int64  `json:"updateTime,omitempty"`
 	}
 
 	DeviceAction struct {

@@ -37,7 +37,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// get login sign
+// getLoginSign get login sign
 func (c *Client) getLoginSign(ctx context.Context) (err error) {
 	var (
 		uri string
@@ -81,7 +81,7 @@ func (c *Client) getLoginSign(ctx context.Context) (err error) {
 	return
 }
 
-// login internal
+// loginInternal login internal
 func (c *Client) loginInternal(ctx context.Context) (err error) {
 	var (
 		pos int
@@ -144,7 +144,7 @@ func (c *Client) loginInternal(ctx context.Context) (err error) {
 	return
 }
 
-// get login server token
+// getLoginServeToken get login server token
 func (c *Client) getLoginServeToken(ctx context.Context) (err error) {
 	var (
 		req *http.Request
@@ -373,15 +373,15 @@ func (c *Client) buildUserAgent(deviceID string) string {
 func (c *Client) prepareLogin() {
 	c.userAgent = c.buildUserAgent(c.deviceID)
 	c.cookies = []*http.Cookie{
-		&http.Cookie{Name: "sdkVersion", Value: "accountsdk-18.8.15", Domain: "mi.com"},
-		&http.Cookie{Name: "sdkVersion", Value: "accountsdk-18.8.15", Domain: "xiaomi.com"},
-		&http.Cookie{Name: "deviceId", Value: c.deviceID, Domain: "mi.com"},
-		&http.Cookie{Name: "deviceId", Value: c.deviceID, Domain: "xiaomi.com"},
+		{Name: "sdkVersion", Value: "accountsdk-18.8.15", Domain: "mi.com"},
+		{Name: "sdkVersion", Value: "accountsdk-18.8.15", Domain: "xiaomi.com"},
+		{Name: "deviceId", Value: c.deviceID, Domain: "mi.com"},
+		{Name: "deviceId", Value: c.deviceID, Domain: "xiaomi.com"},
 	}
 }
 
-// Login login mi cloud
-func (c *Client) Login(ctx context.Context) (err error) {
+// login login mi cloud
+func (c *Client) login(ctx context.Context, force bool) (err error) {
 	var (
 		buf       []byte
 		tokenFile string
@@ -390,11 +390,13 @@ func (c *Client) Login(ctx context.Context) (err error) {
 		tokenFile = os.TempDir()
 	}
 	tokenFile = path.Join(tokenFile, ".miio.token")
-	if buf, err = os.ReadFile(tokenFile); err == nil {
-		if err = json.Unmarshal(buf, &c.us); err == nil {
-			c.deviceID = c.us.DeviceID
-			c.prepareLogin()
-			return
+	if !force {
+		if buf, err = os.ReadFile(tokenFile); err == nil {
+			if err = json.Unmarshal(buf, &c.us); err == nil {
+				c.deviceID = c.us.DeviceID
+				c.prepareLogin()
+				return
+			}
 		}
 	}
 	buf = make([]byte, 6)
@@ -411,10 +413,16 @@ func (c *Client) Login(ctx context.Context) (err error) {
 		return
 	}
 	c.us.DeviceID = c.deviceID
+	c.us.Timestamp = time.Now().Unix()
 	if buf, err = json.MarshalIndent(c.us, "", "\t"); err == nil {
 		err = os.WriteFile(tokenFile, buf, 0644)
 	}
 	return
+}
+
+// Login login mi cloud
+func (c *Client) Login(ctx context.Context) (err error) {
+	return c.login(ctx, false)
 }
 
 // HasNewMsg checking has new message
@@ -422,7 +430,8 @@ func (c *Client) HasNewMsg(ctx context.Context) bool {
 	var ret *Response
 	ret = c.Request(ctx, newRequest("/v2/message/v2/check_new_msg", map[string]any{"begin_at": time.Now().Unix() - 60}))
 	if ret.IsOK() {
-		return false
+		b, _ := strconv.ParseBool(string(ret.Result))
+		return b
 	}
 	return false
 }
@@ -535,8 +544,8 @@ func (c *Client) GetSensorHistory(ctx context.Context, homeID int64) (histories 
 	return
 }
 
-// GetDeviceProps get device properties
-func (c *Client) GetDeviceProps(ctx context.Context, ps ...*types.DeviceProperty) (err error) {
+// GetDeviceProperties get device properties
+func (c *Client) GetDeviceProperties(ctx context.Context, ps ...*types.DeviceProperty) (err error) {
 	var (
 		ret *Response
 	)
@@ -563,8 +572,8 @@ func (c *Client) GetDeviceProps(ctx context.Context, ps ...*types.DeviceProperty
 	return
 }
 
-// SetDeviceProps set device properties
-func (c *Client) SetDeviceProps(ctx context.Context, ps ...*types.DeviceProperty) (err error) {
+// SetDeviceProperties set device properties
+func (c *Client) SetDeviceProperties(ctx context.Context, ps ...*types.DeviceProperty) (err error) {
 	var (
 		ret *Response
 	)
@@ -615,7 +624,7 @@ func (c *Client) Request(ctx context.Context, r *Request) *Response {
 __retry:
 	if res = c.doRequest(ctx, r); !res.IsOK() {
 		if !attempted && res.Code == http.StatusUnauthorized {
-			if err = c.Login(ctx); err == nil {
+			if err = c.login(ctx, true); err == nil {
 				attempted = true
 				goto __retry
 			}
