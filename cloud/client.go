@@ -565,6 +565,7 @@ func (c *Client) GetDeviceProperties(ctx context.Context, ps ...*types.DevicePro
 			if p.SIID == row.SIID && p.PIID == row.PIID {
 				p.Value = row.Value
 				p.Code = row.Code
+				p.Modtime = row.Modtime
 				break
 			}
 		}
