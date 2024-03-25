@@ -385,14 +385,18 @@ func (c *Client) login(ctx context.Context, force bool) (err error) {
 	var (
 		buf       []byte
 		tokenFile string
+		us        *userSecurity
 	)
 	if tokenFile, err = os.UserHomeDir(); err != nil {
 		tokenFile = os.TempDir()
 	}
 	tokenFile = path.Join(tokenFile, ".miio.token")
-	if !force {
-		if buf, err = os.ReadFile(tokenFile); err == nil {
-			if err = json.Unmarshal(buf, &c.us); err == nil {
+	if buf, err = os.ReadFile(tokenFile); err == nil {
+		us = &userSecurity{}
+		if err = json.Unmarshal(buf, us); err == nil {
+			// less 5 minute
+			if !force || (force && time.Now().Unix()-us.Timestamp < 300) {
+				c.us = us
 				c.deviceID = c.us.DeviceID
 				c.prepareLogin()
 				return
