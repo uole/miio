@@ -508,7 +508,7 @@ func (c *Client) GetDevices(ctx context.Context) (devices []*DeviceInfo, err err
 	return
 }
 
-// GetLastMessage get last sensor message
+// GetLastMessage get last message
 func (c *Client) GetLastMessage(ctx context.Context) (messages []*SensorMessage, err error) {
 	var (
 		ret *Response
@@ -525,8 +525,8 @@ func (c *Client) GetLastMessage(ctx context.Context) (messages []*SensorMessage,
 	return
 }
 
-// GetSensorHistory get sensor histories
-func (c *Client) GetSensorHistory(ctx context.Context, homeID int64) (histories []*SensorHistory, err error) {
+// GetSceneHistories get scene histories
+func (c *Client) GetSceneHistories(ctx context.Context, homeID int64) (histories []*SceneHistory, err error) {
 	var (
 		ret *Response
 	)
@@ -541,7 +541,7 @@ func (c *Client) GetSensorHistory(ctx context.Context, homeID int64) (histories 
 		err = ret.Error
 		return
 	}
-	res := &sensorHistoryResponse{}
+	res := &sceneHistoryResponse{}
 	if err = ret.Decode(res); err == nil {
 		histories = res.History
 	}

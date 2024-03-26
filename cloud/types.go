@@ -134,7 +134,7 @@ type (
 		Devices []*DeviceInfo `json:"device_info"`
 	}
 
-	SensorHistoryMsg struct {
+	SceneHistoryMsg struct {
 		At          string `json:"at"`
 		DevConState bool   `json:"dev_con_state"`
 		Error       int    `json:"error"`
@@ -146,19 +146,19 @@ type (
 		UsId        int64  `json:"us_id"`
 	}
 
-	SensorHistory struct {
-		From        string              `json:"from"`
-		HomeId      int64               `json:"homeId"`
-		Msg         []*SensorHistoryMsg `json:"msg"`
-		Name        string              `json:"name"`
-		NoRecordLog bool                `json:"noRecordLog"`
-		SceneType   int                 `json:"sceneType"`
-		Time        int                 `json:"time"`
-		UserSceneId int64               `json:"userSceneId"`
+	SceneHistory struct {
+		From        string             `json:"from"`
+		HomeId      int64              `json:"homeId"`
+		Msg         []*SceneHistoryMsg `json:"msg"`
+		Name        string             `json:"name"`
+		NoRecordLog bool               `json:"noRecordLog"`
+		SceneType   int                `json:"sceneType"`
+		Modtime     int64              `json:"time"`
+		UserSceneId int64              `json:"userSceneId"`
 	}
 
-	sensorHistoryResponse struct {
-		History []*SensorHistory `json:"history"`
+	sceneHistoryResponse struct {
+		History []*SceneHistory `json:"history"`
 	}
 
 	SensorMessage struct {
