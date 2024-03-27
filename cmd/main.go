@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/uole/miio"
+	"github.com/uole/miio/devtool"
 	"github.com/uole/miio/types"
 	"os"
 	"os/signal"
@@ -288,7 +289,6 @@ func parsePcapCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			token, _ = cmd.Flags().GetString("token")
 			filename, _ = cmd.Flags().GetString("filename")
-			devtool := miio.NewDevTool()
 			return devtool.ParsePcap(filename, token)
 		},
 	}

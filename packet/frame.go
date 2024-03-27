@@ -1,10 +1,19 @@
-package miio
+package packet
 
 import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"errors"
 	"io"
+)
+
+var (
+	ErrorPacket = errors.New("packet invalid")
+
+	PacketMagic uint16 = 8497
+
+	HelloToken = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 )
 
 type Frame struct {
@@ -122,7 +131,7 @@ func (f *Frame) Release() {
 	}
 }
 
-func newHelloFrame() *Frame {
+func NewHelloFrame() *Frame {
 	return &Frame{
 		Magic:    PacketMagic,
 		Reserved: 4294967295,
@@ -133,7 +142,7 @@ func newHelloFrame() *Frame {
 	}
 }
 
-func newFrame(deviceId uint32, stamp uint32, token []byte, data []byte) *Frame {
+func NewFrame(deviceId uint32, stamp uint32, token []byte, data []byte) *Frame {
 	return &Frame{
 		Magic:    PacketMagic,
 		Length:   uint16(len(data) + HeadLength),

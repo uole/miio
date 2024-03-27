@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/uole/miio/cipher"
+	"github.com/uole/miio/packet"
 	"net"
 	"strconv"
 	"strings"
@@ -14,11 +16,11 @@ import (
 type (
 	Conn struct {
 		conn         net.Conn
-		address      string       //device address
-		sequence     int          //message sequence
-		deviceID     uint32       //device id
-		deviceUptime int64        //device uptime
-		cipher       *tokenCipher //device token cipher
+		address      string              //device address
+		sequence     int                 //message sequence
+		deviceID     uint32              //device id
+		deviceUptime int64               //device uptime
+		cipher       *cipher.TokenCipher //device token cipher
 		mutex        sync.Mutex
 	}
 )
@@ -40,15 +42,15 @@ func (c *Conn) nextStamp() uint32 {
 func (c *Conn) handshake(ctx context.Context) (err error) {
 	var (
 		in   []byte
-		resp *Frame
+		resp *packet.Frame
 	)
 	c.mutex.Lock()
-	in = ApplyBytes(HeadLength)
+	in = packet.ApplyBytes(HeadLength)
 	defer func() {
-		ReleaseBytes(in)
+		packet.ReleaseBytes(in)
 		c.mutex.Unlock()
 	}()
-	frame := newHelloFrame()
+	frame := packet.NewHelloFrame()
 	frame.Reserved = 4294967295
 	if _, err = frame.WriteTo(c.conn); err != nil {
 		return
@@ -92,7 +94,7 @@ func (c *Conn) Dial(ctx context.Context, address string, token string) (err erro
 		return
 	}
 	c.address = address
-	c.cipher = newTokenCipher(buf)
+	c.cipher = cipher.NewTokenCipher(buf)
 	err = c.handshake(ctx)
 	return
 }
@@ -112,7 +114,7 @@ func (c *Conn) Write(ctx context.Context, b []byte) (n int, err error) {
 			return
 		}
 	}
-	frame := newFrame(c.deviceID, c.nextStamp(), c.cipher.Token, buf)
+	frame := packet.NewFrame(c.deviceID, c.nextStamp(), c.cipher.Token, buf)
 	if deadline, ok = ctx.Deadline(); ok {
 		if err = c.conn.SetWriteDeadline(deadline); err != nil {
 			return
@@ -129,7 +131,7 @@ func (c *Conn) Read(ctx context.Context, b []byte) (n int, err error) {
 	var (
 		ok       bool
 		buf      []byte
-		frame    *Frame
+		frame    *packet.Frame
 		deadline time.Time
 	)
 	if deadline, ok = ctx.Deadline(); ok {
@@ -140,7 +142,7 @@ func (c *Conn) Read(ctx context.Context, b []byte) (n int, err error) {
 			_ = c.conn.SetDeadline(time.Time{})
 		}()
 	}
-	frame = &Frame{}
+	frame = &packet.Frame{}
 	if _, err = frame.ReadFrom(c.conn); err == nil {
 		if len(frame.Data) > 0 {
 			if buf, err = c.cipher.Decrypt(frame.Data); err == nil {
@@ -170,7 +172,7 @@ func (c *Conn) WriteMsg(ctx context.Context, msg any) (err error) {
 			return
 		}
 	}
-	frame := newFrame(c.deviceID, c.nextStamp(), c.cipher.Token, buf)
+	frame := packet.NewFrame(c.deviceID, c.nextStamp(), c.cipher.Token, buf)
 	if deadline, ok = ctx.Deadline(); ok {
 		if err = c.conn.SetWriteDeadline(deadline); err != nil {
 			return
@@ -183,7 +185,7 @@ func (c *Conn) WriteMsg(ctx context.Context, msg any) (err error) {
 	return
 }
 
-func (c *Conn) ReadMsg(ctx context.Context) (frame *Frame, err error) {
+func (c *Conn) ReadMsg(ctx context.Context) (frame *packet.Frame, err error) {
 	var (
 		ok       bool
 		buf      []byte
@@ -197,7 +199,7 @@ func (c *Conn) ReadMsg(ctx context.Context) (frame *Frame, err error) {
 			_ = c.conn.SetDeadline(time.Time{})
 		}()
 	}
-	frame = &Frame{}
+	frame = &packet.Frame{}
 	if _, err = frame.ReadFrom(c.conn); err == nil {
 		if len(frame.Data) > 0 {
 			if buf, err = c.cipher.Decrypt(frame.Data); err == nil {
@@ -211,7 +213,7 @@ func (c *Conn) ReadMsg(ctx context.Context) (frame *Frame, err error) {
 
 func (c *Conn) Execute(ctx context.Context, req *CommandRequest) (res *CommandResponse, err error) {
 	var (
-		frame *Frame
+		frame *packet.Frame
 	)
 	req.ID = c.nextID()
 	c.mutex.Lock()

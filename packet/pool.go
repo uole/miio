@@ -1,4 +1,4 @@
-package miio
+package packet
 
 import (
 	"bytes"

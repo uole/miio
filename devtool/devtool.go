@@ -1,4 +1,4 @@
-package miio
+package devtool
 
 import (
 	"bytes"
@@ -8,18 +8,17 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/uole/miio/cipher"
+	"github.com/uole/miio/packet"
 )
 
-type DevTool struct {
-}
-
-func (dev *DevTool) ParsePcap(filename string, token string) (err error) {
+func ParsePcap(filename string, token string) (err error) {
 	var (
 		ok        bool
 		buf       []byte
 		magic     uint16
-		frame     *Frame
-		cipher    *tokenCipher
+		frame     *packet.Frame
+		engine    *cipher.TokenCipher
 		handle    *pcap.Handle
 		ipv4Layer *layers.IPv4
 		udpLayer  *layers.UDP
@@ -33,15 +32,15 @@ func (dev *DevTool) ParsePcap(filename string, token string) (err error) {
 	defer func() {
 		handle.Close()
 	}()
-	frame = &Frame{}
-	cipher = newTokenCipher(buf)
+	frame = &packet.Frame{}
+	engine = cipher.NewTokenCipher(buf)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		udpTypeLayer := packet.Layer(layers.LayerTypeUDP)
+	for row := range packetSource.Packets() {
+		udpTypeLayer := row.Layer(layers.LayerTypeUDP)
 		if udpTypeLayer == nil {
 			continue
 		}
-		ipTypeLayer := packet.Layer(layers.LayerTypeIPv4)
+		ipTypeLayer := row.Layer(layers.LayerTypeIPv4)
 		if ipTypeLayer == nil {
 			continue
 		}
@@ -52,19 +51,19 @@ func (dev *DevTool) ParsePcap(filename string, token string) (err error) {
 			continue
 		}
 		buf = udpLayer.LayerPayload()
-		if len(buf) < HeadLength {
+		if len(buf) < packet.HeadLength {
 			continue
 		}
 		magic = binary.BigEndian.Uint16(buf[:])
-		if magic != PacketMagic {
+		if magic != packet.PacketMagic {
 			continue
 		}
 		if _, err = frame.ReadFrom(bytes.NewBuffer(buf)); err != nil {
 			continue
 		}
 		fmt.Printf("%s:%d -> %s:%d [did: %d; stamp: %d: length: %d] \n", ipv4Layer.SrcIP, udpLayer.SrcPort, ipv4Layer.DstIP, udpLayer.DstPort, frame.DeviceID, frame.Stamp, frame.Length)
-		if frame.Length > HeadLength {
-			if buf, err = cipher.Decrypt(frame.Data); err == nil {
+		if frame.Length > packet.HeadLength {
+			if buf, err = engine.Decrypt(frame.Data); err == nil {
 				fmt.Printf("%s\n", string(buf))
 			}
 		}
@@ -72,8 +71,4 @@ func (dev *DevTool) ParsePcap(filename string, token string) (err error) {
 		frame.Release()
 	}
 	return
-}
-
-func NewDevTool() *DevTool {
-	return &DevTool{}
 }

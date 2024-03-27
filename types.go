@@ -9,18 +9,11 @@ const (
 	//DefaultPort 默认的端口号
 	DefaultPort = 54321
 
-	MaxFrameLength = 10240
-
 	HeadLength = 32
 )
 
 var (
 	ErrorTokenInvalid = errors.New("token invalid")
-	ErrorPacket       = errors.New("packet invalid")
-
-	PacketMagic uint16 = 8497
-
-	HelloToken = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 )
 
 type (

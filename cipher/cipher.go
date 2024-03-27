@@ -1,4 +1,4 @@
-package miio
+package cipher
 
 import (
 	"bytes"
@@ -13,14 +13,14 @@ var (
 )
 
 type (
-	tokenCipher struct {
+	TokenCipher struct {
 		Token []byte
 		key   []byte
 		iv    []byte
 	}
 )
 
-func (c *tokenCipher) md5Sum(bs ...[]byte) []byte {
+func (c *TokenCipher) md5Sum(bs ...[]byte) []byte {
 	hash := md5.New()
 	for _, b := range bs {
 		hash.Write(b)
@@ -28,13 +28,13 @@ func (c *tokenCipher) md5Sum(bs ...[]byte) []byte {
 	return hash.Sum(nil)
 }
 
-func (c *tokenCipher) PKCS7Padding(src []byte, blockSize int) []byte {
+func (c *TokenCipher) PKCS7Padding(src []byte, blockSize int) []byte {
 	padding := blockSize - len(src)%blockSize
 	buf := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(src, buf...)
 }
 
-func (c *tokenCipher) PKCS7UnPadding(src []byte) ([]byte, error) {
+func (c *TokenCipher) PKCS7UnPadding(src []byte) ([]byte, error) {
 	length := len(src)
 	if length == 0 {
 		return src, ErrUnPadding
@@ -46,7 +46,7 @@ func (c *tokenCipher) PKCS7UnPadding(src []byte) ([]byte, error) {
 	return src[:(length - buf)], nil
 }
 
-func (c *tokenCipher) Encrypt(in []byte) (out []byte, err error) {
+func (c *TokenCipher) Encrypt(in []byte) (out []byte, err error) {
 	var (
 		mode  cipher.BlockMode
 		block cipher.Block
@@ -61,7 +61,7 @@ func (c *tokenCipher) Encrypt(in []byte) (out []byte, err error) {
 	return
 }
 
-func (c *tokenCipher) Decrypt(in []byte) (out []byte, err error) {
+func (c *TokenCipher) Decrypt(in []byte) (out []byte, err error) {
 	var (
 		mode  cipher.BlockMode
 		block cipher.Block
@@ -75,8 +75,8 @@ func (c *tokenCipher) Decrypt(in []byte) (out []byte, err error) {
 	return c.PKCS7UnPadding(out)
 }
 
-func newTokenCipher(token []byte) *tokenCipher {
-	c := &tokenCipher{
+func NewTokenCipher(token []byte) *TokenCipher {
+	c := &TokenCipher{
 		Token: make([]byte, len(token)),
 	}
 	copy(c.Token[:], token[:])
