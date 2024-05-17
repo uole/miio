@@ -312,8 +312,12 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (ret *Response) {
 		}
 	}
 	signNonce, qs = c.encodeQueryParams(r.Method, r.Path, qs)
-	reqUri := c.buildRequestUri(r.Path) + "?" + qs.Encode()
-	if req, ret.Error = http.NewRequest(r.Method, reqUri, nil); ret.Error != nil {
+	if r.Method == http.MethodPost {
+		req, ret.Error = http.NewRequest(r.Method, c.buildRequestUri(r.Path), strings.NewReader(qs.Encode()))
+	} else {
+		req, ret.Error = http.NewRequest(r.Method, c.buildRequestUri(r.Path)+"?"+qs.Encode(), nil)
+	}
+	if ret.Error != nil {
 		ret.Code = ErrorCreateRequest
 		return
 	}
@@ -321,7 +325,7 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (ret *Response) {
 	req.Header.Add("User-Agent", c.userAgent)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	//下面2个头大小写敏感
-	req.Header["x-xiaomi-protocal-flag-cli"] = []string{"PROTOCAL-HTTP2"}
+	//req.Header["x-xiaomi-protocal-flag-cli"] = []string{"PROTOCAL-HTTP2"}
 	req.Header["MIOT-ENCRYPT-ALGORITHM"] = []string{"ENCRYPT-RC4"}
 
 	req.AddCookie(&http.Cookie{Name: "userId", Value: strconv.FormatInt(c.us.UserID, 10)})
@@ -606,7 +610,7 @@ func (c *Client) SetDeviceProperties(ctx context.Context, ps ...*types.DevicePro
 }
 
 // ExecuteDeviceAction execute action
-func (c *Client) ExecuteDeviceAction(ctx context.Context, args types.DeviceAction) (err error) {
+func (c *Client) ExecuteDeviceAction(ctx context.Context, args *types.DeviceAction) (err error) {
 	var (
 		ret *Response
 	)
